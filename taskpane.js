@@ -291,7 +291,18 @@ function attachmentBase64(id) {
 }
 async function onAttach() {
   const pid = $("selProject").value;
-  if (!pid) { status("Kies eerst een project.", "err"); return; }
+  if (!pid) {
+    if ($("secProject").hidden) {
+      status("Zoek hierboven eerst de klant of het project (bv. naam of projectnummer) en klik het aan.", "err");
+      $("inSearchClient").focus();
+    } else if (!state.projects.length) {
+      status("Deze klant heeft nog geen project in Robaws. Maak er eerst een aan, of maak een taak.", "err");
+    } else {
+      status("Kies hierboven bij Project het project waar de mail bij hoort.", "err");
+      $("selProject").focus();
+    }
+    return;
+  }
   const btn = $("btnAttach");
   busy(btn, true, "Mail toevoegen…");
   status("");

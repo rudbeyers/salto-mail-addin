@@ -99,3 +99,15 @@ button.link:hover { background: none; }
            padding: 8px; margin-top: 10px; max-height: 320px; overflow: auto; font-size: 12.5px; }
 #replyBox ul { margin: 4px 0 6px; padding-left: 18px; }
 #replyBox details summary { margin-top: 6px; }
+
+/* offerte uit mail */
+.oregel { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin-top: 8px; }
+.oregel .kop { display: flex; align-items: center; gap: 6px; }
+.oregel .kop b { flex: 1; min-width: 0; font-weight: 600; }
+.oregel .kop input { width: 74px; text-align: right; }
+.oregel .kop span { color: var(--muted); font-size: 12px; min-width: 24px; }
+.oregel label, #offOParams label { margin: 4px 0 0; }
+.oregel .del { border: 0; color: var(--muted); padding: 0 4px; }
+.raming { font-weight: 600; margin: 10px 0 0; }
+.raming .sub { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+#offKlant .dub button { margin: 4px 4px 0 0; font-size: 12px; }

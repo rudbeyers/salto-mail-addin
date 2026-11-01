@@ -94,6 +94,9 @@ async function load() {
   $("btnReply").disabled = false; $("btnReply").classList.add("primary");
   $("senderMore").hidden = true;
   lastReply = null;
+  off = null; $("offBox").hidden = true; $("btnOffVoorstel").disabled = false; $("btnOffVoorstel").classList.add("primary");
+  $("btnOffVoorstel").dataset.label = "Offertevoorstel maken uit deze mail"; $("btnOffVoorstel").textContent = "Offertevoorstel maken uit deze mail";
+  $("btnOffMaken").dataset.label = ""; $("btnOffMaken").disabled = false;
   show("loading", true);
   $("loading").textContent = "Mail wordt bekeken…";
   status("");
@@ -232,6 +235,169 @@ async function onCopy() {
     const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
     status("Tekst is geselecteerd: druk Ctrl+C om te kopiëren.", "");
   }
+}
+
+// ------------------------------------------------------------------ offerte uit deze mail (klant in dezelfde stap)
+let off = null;          // {voorstel, klant, ...} zoals de backend het gaf, met de aanpassingen uit het paneel
+let offTimer = null;
+function el(tag, attrs, text) {
+  const n = document.createElement(tag);
+  Object.entries(attrs || {}).forEach(([k, v]) => { if (v !== undefined && v !== null) n.setAttribute(k, v); });
+  if (text !== undefined) n.textContent = text;
+  return n;
+}
+function keuzeSelect(keuzes, waarde, onChange) {
+  const s = el("select");
+  s.appendChild(el("option", { value: "" }, "— kies —"));
+  keuzes.forEach((k) => { const o = el("option", { value: k }, k); if (k === waarde) o.selected = true; s.appendChild(o); });
+  s.addEventListener("change", () => onChange(s.value || null));
+  return s;
+}
+function euro(v) { return "€ " + Number(v).toLocaleString("nl-BE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+async function onOffVoorstel() {
+  const btn = $("btnOffVoorstel");
+  const seq = loadSeq;
+  busy(btn, true, "Mail lezen en posten kiezen… (± 15 s)");
+  status("");
+  try {
+    const r = await api("offerte_voorstel", mailPayload(5000));
+    if (seq !== loadSeq) return;
+    off = r;
+    renderOff();
+    btn.dataset.label = "↻ Opnieuw voorstellen";
+    btn.classList.remove("primary");
+  } catch (e) { if (seq === loadSeq) status(e.message, "err"); }
+  if (seq === loadSeq) busy(btn, false);
+}
+
+function renderOff() {
+  const v = off.voorstel, k = off.klant || {};
+  $("offBox").hidden = false;
+  // klant
+  const kb = $("offKlant");
+  kb.innerHTML = "";
+  if (k.bestaand) {
+    kb.appendChild(el("div", {}, "Klant: " + k.naam + " ✓"));
+    if (k.adres) kb.appendChild(el("div", { class: "sub" }, k.adres));
+  } else {
+    const g = k.gegevens || (k.gegevens = {});
+    kb.appendChild(el("b", {}, "Nieuwe klant – wordt mee aangemaakt"));
+    const grid = el("div", { class: "grid" });
+    [["naam", "Naam", "full"], ["straat", "Straat + nr", "full"], ["postcode", "Postcode"], ["gemeente", "Gemeente"],
+     ["email", "E-mail", "full"], ["gsm", "Gsm"], ["telefoon", "Telefoon"]].forEach(([key, lab, cls]) => {
+      const l = el("label", cls ? { class: cls } : {}, lab);
+      const i = el("input", { value: g[key] || "" });
+      i.addEventListener("input", () => { g[key] = i.value.trim(); });
+      l.appendChild(i); grid.appendChild(l);
+    });
+    kb.appendChild(grid);
+    if ((k.dubbels || []).length) {
+      const d = el("div", { class: "warn dub" }, "⚠️ Bestaat deze klant al?");
+      k.dubbels.forEach((c) => {
+        const b = el("button", {}, `Gebruik ${c.naam} (${c.waarom})`);
+        b.addEventListener("click", () => { off.klant = { bestaand: true, id: c.id, naam: c.naam, adres: c.adres }; renderOff(); });
+        d.appendChild(el("br")); d.appendChild(b);
+      });
+      kb.appendChild(d);
+    }
+  }
+  // titel en sjabloon
+  $("offTitel").value = v.titel || "";
+  const sj = $("offSjabloon");
+  sj.innerHTML = "";
+  if (!v.sjabloon) sj.appendChild(el("option", { value: "" }, "— kies een sjabloon —"));
+  (v.sjabloon_opties || []).forEach((t) => { const o = el("option", { value: t }, t); if (t === v.sjabloon) o.selected = true; sj.appendChild(o); });
+  // regels
+  const box = $("offRegels");
+  box.innerHTML = "";
+  (v.regels || []).forEach((r, i) => {
+    const d = el("div", { class: "oregel" });
+    const kop = el("div", { class: "kop" });
+    kop.appendChild(el("b", {}, r.omschrijving || r.post || r.gezegd || "?"));
+    const a = el("input", { type: "number", min: "0", step: "any", value: r.aantal });
+    a.addEventListener("input", () => { r.aantal = parseFloat(String(a.value).replace(",", ".")) || 0; herbereken(); });
+    kop.appendChild(a);
+    kop.appendChild(el("span", {}, r.eenheid || ""));
+    const del = el("button", { class: "del", title: "Regel weglaten" }, "✕");
+    del.addEventListener("click", () => { v.regels.splice(i, 1); renderOff(); herbereken(); });
+    kop.appendChild(del);
+    d.appendChild(kop);
+    if (!r.post_id) d.appendChild(el("div", { class: "muted small" }, "Geen passende post gevonden – wordt niet opgenomen."));
+    (r.parameters || []).filter((p) => (p.keuzes || []).length).forEach((p) => {
+      const l = el("label", {}, p.naam + (p.verplicht && !p.waarde ? " *" : ""));
+      l.appendChild(keuzeSelect(p.keuzes, p.waarde, (w) => { p.waarde = w; herbereken(); }));
+      d.appendChild(l);
+    });
+    box.appendChild(d);
+  });
+  // offerteparameters die nog open staan (en die al gekend zijn)
+  const ob = $("offOParams");
+  ob.innerHTML = "";
+  const open = off.open_offerteparameters || [];
+  open.forEach((p) => {
+    const l = el("label", {}, p.naam + " *");
+    l.appendChild(keuzeSelect(p.keuzes, (v.offer_params || {})[p.naam], (w) => {
+      v.offer_params = v.offer_params || {};
+      if (w) v.offer_params[p.naam] = w; else delete v.offer_params[p.naam];
+      herbereken();
+    }));
+    ob.appendChild(l);
+  });
+  toonRaming();
+  // na te vragen
+  const tw = off.twijfels || [];
+  $("lTwijfel").innerHTML = tw.map((t) => `<li>${esc(t)}</li>`).join("");
+  $("sTwijfel").textContent = `Na te vragen (${tw.length})`;
+  $("dTwijfel").hidden = !tw.length;
+  $("btnOffMaken").textContent = k.bestaand ? "✓ Maak conceptofferte in Robaws" : "✓ Maak klant + conceptofferte in Robaws";
+}
+
+function toonRaming() {
+  const p = $("offRaming");
+  p.innerHTML = "";
+  if (off.raming !== null && off.raming !== undefined) {
+    p.appendChild(document.createTextNode("Raming: " + euro(off.raming) + " excl. btw"));
+    p.appendChild(el("span", { class: "sub" }, "zoals Robaws rekent; vaste sjabloonregels komen er in Robaws nog bij"));
+  } else {
+    p.appendChild(document.createTextNode("Raming nog niet volledig"));
+    p.appendChild(el("span", { class: "sub" }, (off.raming_redenen || []).slice(0, 3).join("; ") || "onvolledige gegevens"));
+  }
+}
+
+function herbereken() {
+  clearTimeout(offTimer);
+  offTimer = setTimeout(async () => {
+    try {
+      const r = await api("offerte_raming", { voorstel: off.voorstel });
+      off.raming = r.raming; off.raming_redenen = r.raming_redenen;
+      toonRaming();
+    } catch (e) { /* raming is extra */ }
+  }, 600);
+}
+
+async function onOffMaken() {
+  if (!off) return;
+  const v = off.voorstel;
+  v.titel = $("offTitel").value.trim();
+  v.sjabloon = $("offSjabloon").value || null;
+  if (!v.sjabloon) { status("Kies eerst een sjabloon.", "err"); return; }
+  if (!off.klant.bestaand && !((off.klant.gegevens || {}).naam || "").trim()) { status("Vul de naam van de klant in.", "err"); return; }
+  const btn = $("btnOffMaken");
+  busy(btn, true, off.klant.bestaand ? "Offerte aanmaken…" : "Klant en offerte aanmaken…");
+  status("");
+  try {
+    const r = await api("offerte_maken", Object.assign(mailPayload(3000), { voorstel: v, klant: off.klant }));
+    const extra = [];
+    if (r.klant && r.klant.nieuw) extra.push(`klant ${r.klant.naam} aangemaakt`);
+    if (r.totaal !== null && r.totaal !== undefined) extra.push(`totaal ${euro(r.totaal)} excl. btw`);
+    if ((r.open_parameters || []).length) extra.push("nog in te vullen: " + r.open_parameters.map((x) => x.naam).join(", "));
+    if ((r.waarschuwingen || []).length) extra.push(r.waarschuwingen.length + " opmerking(en) in Robaws");
+    status(`✅ Conceptofferte ${r.nr} staat in Robaws${extra.length ? " – " + extra.join(" · ") : ""}.`, "ok");
+    off.klant = Object.assign({ bestaand: true }, r.klant || {});
+    btn.dataset.label = "✓ Nog een offerte maken";
+  } catch (e) { status(e.message, "err"); }
+  busy(btn, false);
 }
 
 // ------------------------------------------------------------------ panelen
@@ -504,6 +670,10 @@ Office.onReady(() => {
   $("btnAttach").addEventListener("click", onAttach);
   $("inSearchClient").addEventListener("input", onSearch);
   $("btnOpenReply").addEventListener("click", onOpenReply);
+  $("btnOffVoorstel").addEventListener("click", onOffVoorstel);
+  $("btnOffMaken").addEventListener("click", onOffMaken);
+  $("offTitel").addEventListener("input", () => { if (off) off.voorstel.titel = $("offTitel").value; });
+  $("offSjabloon").addEventListener("change", () => { if (off) { off.voorstel.sjabloon = $("offSjabloon").value || null; herbereken(); } });
   $("btnCopy").addEventListener("click", onCopy);
   $("btnInstr").addEventListener("click", () => { $("inInstr").hidden = false; $("btnInstr").hidden = true; $("inInstr").focus(); });
   $("btnNote").addEventListener("click", () => { $("inTaskNote").hidden = false; $("btnNote").hidden = true; $("inTaskNote").focus(); });

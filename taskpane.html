@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mail Agent</title>
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-  <link rel="stylesheet" href="taskpane.css?v=3">
+  <link rel="stylesheet" href="taskpane.css?v=4">
 </head>
 <body>
   <header>
@@ -87,8 +87,9 @@
     <section id="secActions" hidden>
       <div class="acts" role="tablist">
         <button class="act" data-pane="paneReply" role="tab">✎ Antwoord</button>
+        <button class="act" data-pane="paneOffer" role="tab">€ Offerte</button>
         <button class="act" data-pane="tabTask" role="tab">✓ Taak</button>
-        <button class="act" data-pane="tabAttach" role="tab" title="Mail en bijlagen aan het project hangen">📎 Project</button>
+        <button class="act" data-pane="tabAttach" role="tab" title="Mail en bijlagen aan het project hangen">📎</button>
       </div>
 
       <div id="paneReply" class="pane" hidden>
@@ -103,6 +104,22 @@
           </div>
           <details id="dFeiten"><summary id="sFeiten">Uit Robaws gebruikt</summary><ul id="lFeiten" class="small"></ul></details>
           <details id="dNakijk" open><summary id="sNakijk">Zelf nakijken</summary><ul id="lNakijk" class="small"></ul></details>
+        </div>
+      </div>
+
+      <div id="paneOffer" class="pane" hidden>
+        <button id="btnOffVoorstel" class="primary wide">Offertevoorstel maken uit deze mail</button>
+        <div id="offBox" hidden>
+          <div id="offKlant" class="card small"></div>
+          <div class="grid">
+            <label class="full">Titel<input id="offTitel"></label>
+            <label class="full">Sjabloon<select id="offSjabloon"></select></label>
+          </div>
+          <div id="offRegels"></div>
+          <div id="offOParams"></div>
+          <p id="offRaming" class="raming"></p>
+          <details id="dTwijfel" open><summary id="sTwijfel">Na te vragen</summary><ul id="lTwijfel" class="small"></ul></details>
+          <button id="btnOffMaken" class="primary wide">✓ Maak conceptofferte in Robaws</button>
         </div>
       </div>
 
@@ -128,6 +145,6 @@
     <p id="status" class="msg" role="status"></p>
   </main>
 
-  <script src="taskpane.js?v=6"></script>
+  <script src="taskpane.js?v=7"></script>
 </body>
 </html>

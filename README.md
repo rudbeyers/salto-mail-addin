@@ -9,7 +9,9 @@ Mail Agent koppelt je mails aan Robaws via Salto Data (Peliqan). Ze werkt op twe
 - **📎 Project:** de mail komt als opmerking op het project, de bijlagen als documenten.
 - **Nieuwe klant uit handtekening:** leest de gegevens uit de mail, controleert op dubbels en maakt de klant pas na bevestiging aan.
 
-**In het antwoordvenster**, via de knop **Aanvullen met Robaws**: het concept-antwoord komt bovenaan je mail. Je leest na en verstuurt zelf.
+**In de leesweergave**, via de knop **Antwoord met Robaws** (manifest 1.2): één klik, en er opent meteen een antwoord met het concept. Staat het concept al klaar (MAILBOX), dan gaat dat zonder nieuwe AI-kost. Lukt openen niet in een Outlook-versie, dan meldt de knop dat je via Beantwoorden → Aanvullen met Robaws kunt gaan.
+
+**In het antwoordvenster**, via de knop **Aanvullen met Robaws** (manifest 1.1): het concept-antwoord komt bovenaan je mail. Je leest na en verstuurt zelf.
 
 ## Hoe het werkt
 

@@ -1,4 +1,5 @@
-/* Mail Agent – knop "Aanvullen met Robaws" in het antwoordvenster (Salto Works)
+/* Mail Agent – knoppen zonder zijpaneel (Salto Works):
+ *   "Antwoord met Robaws" in de leesweergave (1.2) en "Aanvullen met Robaws" in het antwoordvenster (1.1).
  * Zet een concept-antwoord met feiten uit Robaws bovenaan de mail die de gebruiker aan het schrijven is.
  * Hergebruikt het concept dat MAILBOX al klaarzette (backend-actie "aanvullen"). Verstuurt nooit iets. */
 "use strict";
@@ -89,7 +90,73 @@ async function aanvullen(event) {
   }
 }
 
+// ------------------------------------------------------------------ knop "Antwoord met Robaws" in de leesweergave (1.2)
+// Eén klik vanuit de geopende mail: concept ophalen (bewaard concept van MAILBOX = meteen en gratis, anders Sonnet)
+// en meteen een ingevuld antwoordvenster openen. Lukt openen niet (sommige Outlook-apps), dan een duidelijke melding.
+function openAntwoord(item, html) {
+  const poging = (data) => new Promise((resolve) => {
+    try {
+      if (!item.displayReplyFormAsync) return resolve(false);
+      item.displayReplyFormAsync(data, (r) => resolve(r.status === Office.AsyncResultStatus.Succeeded));
+    } catch (e) { resolve(false); }
+  });
+  return poging(html).then((ok) => ok || poging({ htmlBody: html })).then((ok) => {
+    if (ok) return true;
+    try { item.displayReplyForm(html); return true; } catch (e) { return false; }
+  });
+}
+
+async function antwoordMetRobaws(event) {
+  const item = Office.context.mailbox.item;
+  try {
+    let key = "";
+    try { key = Office.context.roamingSettings.get(KEY_SETTING) || ""; } catch (e) { /* geen instellingen */ }
+    if (!key) {
+      await note(item, "ErrorMessage", "Sleutel ontbreekt: open één keer de Mail Agent bij een mail en vul de sleutel in (⚙).");
+      return;
+    }
+    await note(item, "ProgressIndicator", "Antwoord met Robaws-gegevens wordt klaargezet…");
+    const body = await get((cb) => item.body.getAsync(Office.CoercionType.Text, cb));
+    const from = item.from || item.sender || {};
+    const profiel = Office.context.mailbox.userProfile || {};
+    const d = item.dateTimeCreated ? new Date(item.dateTimeCreated) : null;
+    const res = await fetch(API, {
+      method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({
+        key, action: "antwoord", user: profiel.emailAddress || "", user_name: profiel.displayName || "",
+        item_id: item.itemId || "", internet_message_id: item.internetMessageId || "",
+        subject: item.subject || "", from_email: (from.emailAddress || "").toLowerCase(), from_name: from.displayName || "",
+        date: d ? d.toLocaleString("nl-BE", { dateStyle: "short", timeStyle: "short" }) : "",
+        body: String(body || "").slice(0, 5000),
+      }),
+    });
+    let j = {};
+    try { j = await res.json(); } catch (e) { /* lege body */ }
+    if (!res.ok || j.ok === false || !j.tekst) {
+      await note(item, "ErrorMessage", j.fout || ("Concept maken mislukt (" + res.status + ")."));
+      return;
+    }
+    const html = simpleHtml(zonderNaam(j.tekst, profiel.displayName));
+    if (await openAntwoord(item, html)) {
+      const n = (j.na_te_kijken || []).length;
+      await note(item, "InformationalMessage",
+        `Antwoord geopend${n ? ` – ${n} punten zelf nakijken` : ""}. Vul [ … ] aan en verstuur zelf.`);
+    } else {
+      await note(item, "ErrorMessage",
+        "Deze Outlook liet het openen niet toe. Klik Beantwoorden en daarna ‘Aanvullen met Robaws’ (het concept staat klaar).");
+    }
+  } catch (e) {
+    await note(item, "ErrorMessage", "Geen verbinding met Salto Data. Probeer opnieuw.");
+  } finally {
+    if (event && event.completed) event.completed();
+  }
+}
+
 Office.onReady(() => {
-  if (Office.actions && Office.actions.associate) Office.actions.associate("aanvullen", aanvullen);
+  if (Office.actions && Office.actions.associate) {
+    Office.actions.associate("aanvullen", aanvullen);
+    Office.actions.associate("antwoordMetRobaws", antwoordMetRobaws);
+  }
 });
 window.aanvullen = aanvullen;   // oudere Outlook-versies zoeken de functie globaal
+window.antwoordMetRobaws = antwoordMetRobaws;

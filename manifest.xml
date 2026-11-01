@@ -5,7 +5,7 @@
            xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
            xsi:type="MailApp">
   <Id>eda5313a-ce22-47ec-a4bd-acfbb56b922d</Id>
-  <Version>1.1.0.0</Version>
+  <Version>1.2.0.0</Version>
   <ProviderName>Salto Works</ProviderName>
   <DefaultLocale>nl-NL</DefaultLocale>
   <DisplayName DefaultValue="Mail Agent"/>
@@ -69,6 +69,21 @@
                       <SupportsPinning>true</SupportsPinning>
                     </Action>
                   </Control>
+                  <Control xsi:type="Button" id="msgReadReplyButton">
+                    <Label resid="ReplyButton.Label"/>
+                    <Supertip>
+                      <Title resid="ReplyButton.Label"/>
+                      <Description resid="ReplyButton.Tooltip"/>
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="Icon.16x16"/>
+                      <bt:Image size="32" resid="Icon.32x32"/>
+                      <bt:Image size="80" resid="Icon.80x80"/>
+                    </Icon>
+                    <Action xsi:type="ExecuteFunction">
+                      <FunctionName>antwoordMetRobaws</FunctionName>
+                    </Action>
+                  </Control>
                 </Group>
               </OfficeTab>
             </ExtensionPoint>
@@ -105,15 +120,17 @@
         </bt:Images>
         <bt:Urls>
           <bt:Url id="Taskpane.Url" DefaultValue="https://rudbeyers.github.io/salto-mail-addin/taskpane.html?v=7"/>
-          <bt:Url id="Commands.Url" DefaultValue="https://rudbeyers.github.io/salto-mail-addin/commands.html?v=1"/>
+          <bt:Url id="Commands.Url" DefaultValue="https://rudbeyers.github.io/salto-mail-addin/commands.html?v=2"/>
         </bt:Urls>
         <bt:ShortStrings>
           <bt:String id="GroupLabel" DefaultValue="Salto"/>
           <bt:String id="TaskpaneButton.Label" DefaultValue="Mail Agent"/>
           <bt:String id="FillButton.Label" DefaultValue="Aanvullen met Robaws"/>
+          <bt:String id="ReplyButton.Label" DefaultValue="Antwoord met Robaws"/>
         </bt:ShortStrings>
         <bt:LongStrings>
           <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Open de Mail Agent: analyse, concept-antwoord, klant, project en acties in Robaws."/>
+          <bt:String id="ReplyButton.Tooltip" DefaultValue="Opent meteen een antwoord met een concept vol gegevens uit Robaws. Je leest na en verstuurt zelf."/>
           <bt:String id="FillButton.Tooltip" DefaultValue="Zet een concept-antwoord met gegevens uit Robaws bovenaan je mail. Je leest na en verstuurt zelf."/>
         </bt:LongStrings>
       </Resources>

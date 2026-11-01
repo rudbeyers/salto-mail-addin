@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mail Agent</title>
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-  <link rel="stylesheet" href="taskpane.css?v=2">
+  <link rel="stylesheet" href="taskpane.css?v=3">
 </head>
 <body>
   <header>
@@ -28,31 +28,32 @@
   <main id="main">
     <div id="loading" class="loading">Mail wordt bekeken…</div>
 
-    <!-- Analyse (uit MAILBOX, geen nieuwe AI-kost) -->
+    <!-- 1. Wat is er aan de hand (analyse van MAILBOX, geen nieuwe AI-kost) -->
     <section id="secAnalyse" hidden>
-      <h2>Salto Data-analyse</h2>
       <div id="analyse" class="card"></div>
     </section>
 
-    <!-- Antwoord voorbereiden -->
-    <section id="secReply" hidden>
-      <h2>Antwoord</h2>
-      <label for="inInstr">Extra richting (optioneel)</label>
-      <input id="inInstr" placeholder="bv. stel donderdag voor als nieuwe datum">
-      <button id="btnReply" class="primary wide">✎ Antwoord voorbereiden</button>
-      <p class="muted small">Met feiten uit Robaws. Opent als concept in Outlook – jij leest na en verstuurt.</p>
-      <div id="replyInfo" class="small" hidden></div>
-    </section>
-
-    <!-- Afzender -->
+    <!-- 2. Wie (klant + project op één regel) -->
     <section id="secSender" hidden>
-      <h2>Afzender</h2>
-      <div id="clientCard" class="card"></div>
+      <div id="who" class="who">
+        <div class="who-txt"><b id="whoName"></b><span id="whoProject" class="sub"></span></div>
+        <button id="btnWho" class="link">wijzig</button>
+      </div>
+      <div id="senderMore" hidden>
+        <div id="clientCard" class="card"></div>
+        <div id="secProject">
+          <label for="selProject">Project</label>
+          <select id="selProject"></select>
+          <p id="projectWhy" class="muted small"></p>
+          <details id="ctxDetails">
+            <summary>Offertes en werkbonnen</summary>
+            <div id="ctx" class="list small"></div>
+          </details>
+        </div>
+      </div>
       <div id="unknown" hidden>
         <p class="muted" id="unknownText"></p>
-        <div class="row">
-          <button id="btnExtract" class="primary">＋ Nieuwe klant uit handtekening</button>
-        </div>
+        <button id="btnExtract" class="primary wide">＋ Nieuwe klant uit handtekening</button>
         <label for="inSearchClient">Of koppel aan een bestaande klant</label>
         <input id="inSearchClient" type="search" placeholder="Zoek klant of project…">
         <div id="searchResults" class="list"></div>
@@ -82,39 +83,41 @@
       </div>
     </section>
 
-    <!-- Project -->
-    <section id="secProject" hidden>
-      <h2>Project</h2>
-      <select id="selProject"></select>
-      <p id="projectWhy" class="muted small"></p>
-      <details id="ctxDetails">
-        <summary>Offertes en werkbonnen</summary>
-        <div id="ctx" class="list small"></div>
-      </details>
-    </section>
-
-    <!-- Acties -->
+    <!-- 3. Wat doe je (drie knoppen; formulier enkel na een klik) -->
     <section id="secActions" hidden>
-      <h2>Acties</h2>
-      <div class="tabs" role="tablist">
-        <button class="tab active" data-tab="tabTask" role="tab">Taak</button>
-        <button class="tab" data-tab="tabAttach" role="tab">Aan project</button>
+      <div class="acts" role="tablist">
+        <button class="act" data-pane="paneReply" role="tab">✎ Antwoord</button>
+        <button class="act" data-pane="tabTask" role="tab">✓ Taak</button>
+        <button class="act" data-pane="tabAttach" role="tab" title="Mail en bijlagen aan het project hangen">📎 Project</button>
       </div>
 
-      <div id="tabTask" class="tabpane">
+      <div id="paneReply" class="pane" hidden>
+        <button id="btnInstr" class="link">+ richting geven</button>
+        <input id="inInstr" placeholder="bv. stel donderdag voor als nieuwe datum" hidden>
+        <button id="btnReply" class="primary wide">Concept maken met Robaws-gegevens</button>
+        <div id="replyBox" hidden>
+          <div id="replyText" class="preview"></div>
+          <div class="row">
+            <button id="btnOpenReply" class="primary">Openen als antwoord</button>
+            <button id="btnCopy">Kopiëren</button>
+          </div>
+          <details id="dFeiten"><summary id="sFeiten">Uit Robaws gebruikt</summary><ul id="lFeiten" class="small"></ul></details>
+          <details id="dNakijk" open><summary id="sNakijk">Zelf nakijken</summary><ul id="lNakijk" class="small"></ul></details>
+        </div>
+      </div>
+
+      <div id="tabTask" class="pane" hidden>
         <label for="inTitle">Titel</label>
         <input id="inTitle">
         <div class="grid">
           <label>Deadline<input id="inDeadline" type="date"></label>
         </div>
-        <label for="inTaskNote">Extra uitleg (optioneel)</label>
-        <textarea id="inTaskNote" rows="2"></textarea>
-        <button id="btnTask" class="primary wide">✓ Maak taak</button>
-        <p class="muted small">De volledige mail komt als opmerking onder de taak.</p>
+        <button id="btnNote" class="link">+ extra uitleg</button>
+        <textarea id="inTaskNote" rows="2" hidden></textarea>
+        <button id="btnTask" class="primary wide">✓ Maak taak in Robaws</button>
       </div>
 
-      <div id="tabAttach" class="tabpane" hidden>
-        <p class="muted small">De mail komt als opmerking op het gekozen project.</p>
+      <div id="tabAttach" class="pane" hidden>
         <div id="attList" class="list"></div>
         <label for="inAttNote">Notitie (optioneel)</label>
         <textarea id="inAttNote" rows="2"></textarea>
@@ -125,6 +128,6 @@
     <p id="status" class="msg" role="status"></p>
   </main>
 
-  <script src="taskpane.js?v=3"></script>
+  <script src="taskpane.js?v=4"></script>
 </body>
 </html>

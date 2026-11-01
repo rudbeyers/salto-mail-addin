@@ -85,9 +85,14 @@ function mailPayload(limit) {
 // ------------------------------------------------------------------ laden
 async function load() {
   const seq = ++loadSeq;
-  ["secAnalyse", "secReply", "secSender", "secNewClient", "secProject", "secActions"].forEach((s) => show(s, false));
-  $("replyInfo").hidden = true;
-  $("inInstr").value = "";
+  ["secAnalyse", "secSender", "secNewClient", "secActions"].forEach((s) => show(s, false));
+  openPane(null);
+  $("replyBox").hidden = true;
+  $("inInstr").value = ""; $("inInstr").hidden = true;
+  $("inTaskNote").hidden = true; $("btnNote").hidden = false; $("btnInstr").hidden = false;
+  $("btnReply").dataset.label = "Concept maken met Robaws-gegevens"; $("btnReply").textContent = "Concept maken met Robaws-gegevens";
+  $("senderMore").hidden = true;
+  lastReply = null;
   show("loading", true);
   $("loading").textContent = "Mail wordt bekeken…";
   status("");
@@ -109,7 +114,6 @@ async function load() {
     if (seq !== loadSeq) return;
     state.lookup = r;
     show("loading", false);
-    show("secReply", true);
     if (r.gevonden) setClient(r.klant, r.hoe, r.projecten, r.voorstel_project_id, r.voorstel_waarom, r.offertes, r.werkbonnen);
     else showUnknown();
   } catch (e) {
@@ -126,12 +130,13 @@ async function loadAnalyse(seq) {
     if (seq !== loadSeq || !r.analyse) return;
     const a = r.analyse;
     const lbl = ["Dringend", "Kans", "Opvolgen", "Info"].includes(a.label) ? a.label : "Info";
+    const meer = (a.waarom ? `<p><b>Waarom:</b> ${esc(a.waarom)}</p>` : "") + (a.actie ? `<p><b>Voorstel:</b> ${esc(a.actie)}</p>` : "");
+    $("analyse").className = "card an an-" + lbl;
     $("analyse").innerHTML =
-      `<span class="lbl lbl-${lbl}">${esc(a.label || "Info")}</span>` +
-      (a.status === "beantwoord" ? '<span class="badge">al beantwoord</span>' : "") +
+      `<div><span class="lbl lbl-${lbl}">${esc(a.label || "Info")}</span>` +
+      (a.status === "beantwoord" ? '<span class="badge">al beantwoord</span>' : "") + "</div>" +
       (a.samenvatting ? `<p>${esc(a.samenvatting)}</p>` : "") +
-      (a.waarom ? `<p class="why"><b>Waarom:</b> ${esc(a.waarom)}</p>` : "") +
-      (a.actie ? `<p class="why"><b>Voorstel:</b> ${esc(a.actie)}</p>` : "");
+      (meer ? `<details class="why"><summary>meer</summary>${meer}</details>` : "");
     show("secAnalyse", true);
     // taak alvast invullen met het voorstel (blijft aanpasbaar)
     if (a.taak_titel && $("inTitle").value === mail.subject) $("inTitle").value = a.taak_titel;
@@ -140,23 +145,67 @@ async function loadAnalyse(seq) {
 }
 
 // ------------------------------------------------------------------ antwoord voorbereiden
+let lastReply = null;
+function fillList(listId, sumId, label, items) {
+  $(listId).innerHTML = (items || []).map((f) => `<li>${esc(f)}</li>`).join("");
+  $(sumId).textContent = `${label} (${(items || []).length})`;
+  $(listId).parentElement.hidden = !(items || []).length;
+}
 async function onReply() {
   const btn = $("btnReply");
-  busy(btn, true, "Antwoord schrijven…");
+  busy(btn, true, "Concept schrijven… (± 15 s)");
   status("");
-  $("replyInfo").hidden = true;
+  $("replyBox").hidden = true;
   try {
     const r = await api("antwoord", Object.assign(mailPayload(5000), { user_name: userName(), instructie: $("inInstr").value.trim() }));
-    const info = $("replyInfo");
-    const feiten = (r.gebruikte_feiten || []).map((f) => `<li>${esc(f)}</li>`).join("");
-    const nakijk = (r.na_te_kijken || []).map((f) => `<li>${esc(f)}</li>`).join("");
-    info.innerHTML = (feiten ? `<b>Uit Robaws gebruikt</b><ul>${feiten}</ul>` : "") +
-                     (nakijk ? `<b>Zelf nakijken</b><ul>${nakijk}</ul>` : "");
-    info.hidden = !(feiten || nakijk);
-    Office.context.mailbox.item.displayReplyForm({ htmlBody: r.html || "" });
-    status("✅ Concept geopend in Outlook. Lees na, vul [ … ] aan en verstuur zelf.", "ok");
+    lastReply = r;
+    $("replyText").textContent = r.tekst || "";
+    fillList("lFeiten", "sFeiten", "Uit Robaws gebruikt", r.gebruikte_feiten);
+    fillList("lNakijk", "sNakijk", "Zelf nakijken", r.na_te_kijken);
+    $("replyBox").hidden = false;
+    btn.dataset.label = "↻ Opnieuw maken";
   } catch (e) { status(e.message, "err"); }
   busy(btn, false);
+}
+function onOpenReply() {
+  if (!lastReply) return;
+  const html = lastReply.html || "";
+  const item = Office.context.mailbox.item;
+  const done = (ok, msg) => status(ok ? "✅ Antwoord geopend in Outlook. Vul [ … ] aan en verstuur zelf."
+    : `Openen lukte niet${msg ? " (" + msg + ")" : ""}. Gebruik ‘Kopiëren’ en plak in een antwoord.`, ok ? "ok" : "err");
+  try {
+    if (item.displayReplyFormAsync) {
+      item.displayReplyFormAsync({ htmlBody: html }, (res) =>
+        done(res.status === Office.AsyncResultStatus.Succeeded, res.error && res.error.message));
+    } else {
+      item.displayReplyForm({ htmlBody: html });
+      done(true);
+    }
+  } catch (e) { done(false, e.message); }
+}
+async function onCopy() {
+  if (!lastReply) return;
+  const t = lastReply.tekst || "";
+  try {
+    await navigator.clipboard.writeText(t);
+    status("📋 Gekopieerd. Klik in Outlook op Beantwoorden en plak.", "ok");
+  } catch (e) {
+    const r = document.createRange();
+    r.selectNodeContents($("replyText"));
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    status("Tekst is geselecteerd: druk Ctrl+C om te kopiëren.", "");
+  }
+}
+
+// ------------------------------------------------------------------ panelen
+function openPane(id) {
+  document.querySelectorAll(".pane").forEach((p) => { p.hidden = p.id !== id; });
+  document.querySelectorAll(".act").forEach((b) => b.classList.toggle("active", b.dataset.pane === id));
+}
+function updateWho() {
+  const sel = $("selProject");
+  const opt = sel.selectedOptions[0];
+  $("whoProject").textContent = sel.value && opt ? opt.textContent : (state.projects.length ? "geen project gekozen" : "nog geen project");
 }
 
 function setClient(klant, hoe, projecten, voorstelId, waarom, offertes, werkbonnen) {
@@ -164,6 +213,8 @@ function setClient(klant, hoe, projecten, voorstelId, waarom, offertes, werkbonn
   state.projects = projecten || [];
   show("secSender", true);
   show("unknown", false);
+  show("who", true);
+  $("whoName").textContent = klant.naam;
   show("secNewClient", false);
   $("clientCard").hidden = false;
   $("clientCard").innerHTML =
@@ -191,6 +242,7 @@ function fillProjects(voorstelId, waarom) {
   });
   sel.value = voorstelId || "";
   $("projectWhy").textContent = voorstelId ? `Voorstel: ${waarom}` : "";
+  updateWho();
 }
 
 function renderContext(offertes, werkbonnen) {
@@ -203,6 +255,8 @@ function renderContext(offertes, werkbonnen) {
 
 function showUnknown() {
   show("secSender", true);
+  show("who", false);
+  show("senderMore", false);
   $("clientCard").hidden = true;
   show("unknown", true);
   $("unknownText").textContent = `${mail.from_name || mail.from_email} is nog geen klant in Robaws.`;
@@ -311,7 +365,7 @@ async function onTask() {
       note: $("inTaskNote").value.trim(),
       project_id: $("selProject").value || null,
     }));
-    status(`✅ Taak “${r.titel}” staat in Robaws.`, "ok");
+    status(`✅ Taak “${r.titel}” staat in Robaws, met de mail als opmerking.`, "ok");
   } catch (e) { status(e.message, "err"); }
   busy(btn, false);
 }
@@ -348,7 +402,8 @@ async function onAttach() {
     } else if (!state.projects.length) {
       status("Deze klant heeft nog geen project in Robaws. Maak er eerst een aan, of maak een taak.", "err");
     } else {
-      status("Kies hierboven bij Project het project waar de mail bij hoort.", "err");
+      status("Kies eerst het project waar de mail bij hoort.", "err");
+      show("senderMore", true);
       $("selProject").focus();
     }
     return;
@@ -411,9 +466,15 @@ Office.onReady(() => {
   $("btnReply").addEventListener("click", onReply);
   $("btnAttach").addEventListener("click", onAttach);
   $("inSearchClient").addEventListener("input", onSearch);
-  document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("active", x === t));
-    document.querySelectorAll(".tabpane").forEach((p) => { p.hidden = p.id !== t.dataset.tab; });
+  $("btnOpenReply").addEventListener("click", onOpenReply);
+  $("btnCopy").addEventListener("click", onCopy);
+  $("btnInstr").addEventListener("click", () => { $("inInstr").hidden = false; $("btnInstr").hidden = true; $("inInstr").focus(); });
+  $("btnNote").addEventListener("click", () => { $("inTaskNote").hidden = false; $("btnNote").hidden = true; $("inTaskNote").focus(); });
+  $("btnWho").addEventListener("click", () => show("senderMore", $("senderMore").hidden));
+  $("selProject").addEventListener("change", updateWho);
+  document.querySelectorAll(".act").forEach((b) => b.addEventListener("click", () => {
+    status("");
+    openPane(b.classList.contains("active") ? null : b.dataset.pane);
   }));
   // vastgezet venster: opnieuw laden bij een andere mail
   try {

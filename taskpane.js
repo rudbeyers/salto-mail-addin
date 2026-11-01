@@ -91,6 +91,7 @@ async function load() {
   $("inInstr").value = ""; $("inInstr").hidden = true;
   $("inTaskNote").hidden = true; $("btnNote").hidden = false; $("btnInstr").hidden = false;
   $("btnReply").dataset.label = "Concept maken met Robaws-gegevens"; $("btnReply").textContent = "Concept maken met Robaws-gegevens";
+  $("btnReply").disabled = false; $("btnReply").classList.add("primary");
   $("senderMore").hidden = true;
   lastReply = null;
   show("loading", true);
@@ -138,6 +139,12 @@ async function loadAnalyse(seq) {
       (a.samenvatting ? `<p>${esc(a.samenvatting)}</p>` : "") +
       (meer ? `<details class="why"><summary>meer</summary>${meer}</details>` : "");
     show("secAnalyse", true);
+    // Dringend of Kans: het concept-antwoord staat al klaar (door MAILBOX), anders meteen laten maken
+    if (lbl === "Dringend" || lbl === "Kans") {
+      openPane("paneReply");
+      if (r.concept && r.concept.tekst) showConcept(r.concept);
+      else if (a.status !== "beantwoord") onReply();
+    }
     // taak alvast invullen met het voorstel (blijft aanpasbaar)
     if (a.taak_titel && $("inTitle").value === mail.subject) $("inTitle").value = a.taak_titel;
     if (a.deadline && !$("inDeadline").value && /^\d{4}-\d{2}-\d{2}$/.test(a.deadline)) $("inDeadline").value = a.deadline;
@@ -151,21 +158,30 @@ function fillList(listId, sumId, label, items) {
   $(sumId).textContent = `${label} (${(items || []).length})`;
   $(listId).parentElement.hidden = !(items || []).length;
 }
+function showConcept(r) {
+  lastReply = r;
+  $("replyText").textContent = r.tekst || "";
+  fillList("lFeiten", "sFeiten", "Uit Robaws gebruikt", r.gebruikte_feiten);
+  fillList("lNakijk", "sNakijk", "Zelf nakijken", r.na_te_kijken);
+  $("replyBox").hidden = false;
+  $("btnReply").dataset.label = "↻ Opnieuw maken";
+  $("btnReply").textContent = "↻ Opnieuw maken";
+  $("btnReply").classList.remove("primary");
+}
 async function onReply() {
   const btn = $("btnReply");
+  if (btn.disabled) return;
+  const seq = loadSeq;
+  const opnieuw = !!lastReply;
   busy(btn, true, "Concept schrijven… (± 15 s)");
   status("");
-  $("replyBox").hidden = true;
   try {
-    const r = await api("antwoord", Object.assign(mailPayload(5000), { user_name: userName(), instructie: $("inInstr").value.trim() }));
-    lastReply = r;
-    $("replyText").textContent = r.tekst || "";
-    fillList("lFeiten", "sFeiten", "Uit Robaws gebruikt", r.gebruikte_feiten);
-    fillList("lNakijk", "sNakijk", "Zelf nakijken", r.na_te_kijken);
-    $("replyBox").hidden = false;
-    btn.dataset.label = "↻ Opnieuw maken";
-  } catch (e) { status(e.message, "err"); }
-  busy(btn, false);
+    const r = await api("antwoord", Object.assign(mailPayload(5000), {
+      user_name: userName(), instructie: $("inInstr").value.trim(), vernieuw: opnieuw }));
+    if (seq !== loadSeq) return;
+    showConcept(r);
+  } catch (e) { if (seq === loadSeq) status(e.message, "err"); }
+  if (seq === loadSeq) busy(btn, false);
 }
 function onOpenReply() {
   if (!lastReply) return;

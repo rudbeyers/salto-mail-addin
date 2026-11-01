@@ -142,6 +142,7 @@ async function loadAnalyse(seq) {
       (a.samenvatting ? `<p>${esc(a.samenvatting)}</p>` : "") +
       (meer ? `<details class="why"><summary>meer</summary>${meer}</details>` : "");
     show("secAnalyse", true);
+    if (r.leverancier) { renderLev(r.leverancier); return; }   // leveranciersmail: geen klantantwoord voorbereiden
     // Dringend of Kans: het concept-antwoord staat al klaar (door MAILBOX), anders meteen laten maken
     if (lbl === "Dringend" || lbl === "Kans") {
       openPane("paneReply");
@@ -152,6 +153,53 @@ async function loadAnalyse(seq) {
     if (a.taak_titel && $("inTitle").value === mail.subject) $("inTitle").value = a.taak_titel;
     if (a.deadline && !$("inDeadline").value && /^\d{4}-\d{2}-\d{2}$/.test(a.deadline)) $("inDeadline").value = a.deadline;
   } catch (e) { /* analyse is extra: stil overslaan */ }
+}
+
+// ------------------------------------------------------------------ leveranciersmail (app 36)
+function dm(iso) { return iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) : "(leeg)"; }
+function renderLev(lev) {
+  const box = el("div", { class: "lev" });
+  box.appendChild(el("p", { class: "lev-kop" }, "🚚 Leverancier: " + (lev.leverancier || "")));
+  const wz = {};
+  (lev.wijzigingen || []).forEach((w) => { wz[w.order_nr] = w; });
+  (lev.bestellingen || []).forEach((b) => {
+    const rij = el("div", { class: "lev-rij" + (b.te_laat ? " laat" : "") });
+    const nr = b.order_nr || b.bestelnummer || "?";
+    const w = wz[b.order_nr];
+    let t = nr + ": leverdatum " + (w ? dm(w.oud) + " → " + dm(w.nieuw) : dm(b.leverdatum));
+    if (b.werfdag) t += " · werf " + dm(b.werfdag);
+    if (b.te_laat) t += " ⚠️ te laat";
+    rij.appendChild(el("b", {}, t));
+    const sig = [];
+    if (b.backorder) sig.push("backorder");
+    if (b.prijswijziging) sig.push("prijswijziging");
+    if (!b.order_nr) sig.push("geen eenduidige bestelling gevonden (" + (b.match || "?") + ")");
+    if (sig.length) rij.appendChild(el("span", {}, "Let op: " + sig.join(", ")));
+    if (w) {
+      const st = el("span", { class: "lev-st" }, { toegepast: "✅ aangepast in Robaws", voorstel: "voorstel, nog niet in Robaws",
+                                                    teruggezet: "↩️ teruggezet" }[w.status] || w.status);
+      rij.appendChild(st);
+      const actie = w.status === "voorstel" ? ["lev_toepassen", "Toepassen in Robaws", "primary"]
+        : w.status === "toegepast" ? ["lev_terugzetten", "Terugzetten", ""] : null;
+      if (actie) {
+        const knop = el("button", { class: actie[2] }, actie[1]);
+        knop.addEventListener("click", async () => {
+          busy(knop, true, "Bezig…");
+          try {
+            const r = await api(actie[0], { wijziging_id: w.id });
+            w.status = r.status;
+            status(nr + ": " + (r.status === "toegepast" ? "leverdatum " + dm(r.datum) + " staat in Robaws" : "teruggezet naar " + dm(r.datum)), "ok");
+            $("analyse").querySelector(".lev").remove();
+            renderLev(lev);
+          } catch (e) { status(e.message, "err"); busy(knop, false); }
+        });
+        rij.appendChild(knop);
+      }
+    }
+    box.appendChild(rij);
+  });
+  if ((lev.pdfs || []).length) box.appendChild(el("p", { class: "lev-pdf" }, "Gelezen: " + lev.pdfs.join(", ")));
+  $("analyse").appendChild(box);
 }
 
 // ------------------------------------------------------------------ antwoord voorbereiden

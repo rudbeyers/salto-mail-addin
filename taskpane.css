@@ -111,3 +111,13 @@ button.link:hover { background: none; }
 .raming { font-weight: 600; margin: 10px 0 0; }
 .raming .sub { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
 #offKlant .dub button { margin: 4px 4px 0 0; font-size: 12px; }
+
+/* leveranciersmail (v8) */
+.lev { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.lev-kop { font-weight: 600; margin: 0 0 6px; }
+.lev-rij { padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.lev-rij b { display: block; font-weight: 600; }
+.lev-rij span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.lev-rij.laat b { color: #c2410c; }
+.lev-rij button { margin-top: 6px; font-size: 12px; }
+.lev-pdf { color: var(--muted); font-size: 12px; margin: 6px 0 0; }

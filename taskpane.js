@@ -29,7 +29,8 @@ function status(text, kind) {
   el.className = "msg" + (kind ? " " + kind : "");
 }
 async function api(action, payload) {
-  const body = Object.assign({ key: getKey(), action, user: userEmail(), item_id: mail ? mail.item_id : "" }, payload || {});
+  const body = Object.assign({ key: getKey(), action, user: userEmail(), item_id: mail ? mail.item_id : "",
+                               internet_message_id: mail ? mail.internet_message_id : "" }, payload || {});
   let res;
   try {
     res = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" }, body: JSON.stringify(body) });
@@ -44,6 +45,9 @@ async function api(action, payload) {
 }
 function userEmail() {
   try { return Office.context.mailbox.userProfile.emailAddress || ""; } catch (e) { return ""; }
+}
+function userName() {
+  try { return Office.context.mailbox.userProfile.displayName || ""; } catch (e) { return ""; }
 }
 function busy(btn, on, label) {
   if (!btn) return;
@@ -62,6 +66,7 @@ function readMail() {
       const d = item.dateTimeCreated ? new Date(item.dateTimeCreated) : null;
       resolve({
         item_id: item.itemId || "",
+        internet_message_id: item.internetMessageId || "",
         subject: item.subject || "",
         from_email: (from.emailAddress || "").toLowerCase(),
         from_name: from.displayName || "",
@@ -80,7 +85,9 @@ function mailPayload(limit) {
 // ------------------------------------------------------------------ laden
 async function load() {
   const seq = ++loadSeq;
-  ["secSender", "secNewClient", "secProject", "secActions"].forEach((s) => show(s, false));
+  ["secAnalyse", "secReply", "secSender", "secNewClient", "secProject", "secActions"].forEach((s) => show(s, false));
+  $("replyInfo").hidden = true;
+  $("inInstr").value = "";
   show("loading", true);
   $("loading").textContent = "Mail wordt bekeken…";
   status("");
@@ -96,17 +103,60 @@ async function load() {
   $("inAttNote").value = "";
   renderAttachments();
 
+  loadAnalyse(seq);   // parallel: het oordeel van MAILBOX (geen nieuwe AI-kost)
   try {
     const r = await api("lookup", mailPayload(3000));
     if (seq !== loadSeq) return;
     state.lookup = r;
     show("loading", false);
+    show("secReply", true);
     if (r.gevonden) setClient(r.klant, r.hoe, r.projecten, r.voorstel_project_id, r.voorstel_waarom, r.offertes, r.werkbonnen);
     else showUnknown();
   } catch (e) {
     if (seq !== loadSeq) return;
     $("loading").textContent = e.message;
   }
+}
+
+// ------------------------------------------------------------------ analyse (MAILBOX)
+async function loadAnalyse(seq) {
+  if (!mail.internet_message_id) return;
+  try {
+    const r = await api("analyse", {});
+    if (seq !== loadSeq || !r.analyse) return;
+    const a = r.analyse;
+    const lbl = ["Dringend", "Kans", "Opvolgen", "Info"].includes(a.label) ? a.label : "Info";
+    $("analyse").innerHTML =
+      `<span class="lbl lbl-${lbl}">${esc(a.label || "Info")}</span>` +
+      (a.status === "beantwoord" ? '<span class="badge">al beantwoord</span>' : "") +
+      (a.samenvatting ? `<p>${esc(a.samenvatting)}</p>` : "") +
+      (a.waarom ? `<p class="why"><b>Waarom:</b> ${esc(a.waarom)}</p>` : "") +
+      (a.actie ? `<p class="why"><b>Voorstel:</b> ${esc(a.actie)}</p>` : "");
+    show("secAnalyse", true);
+    // taak alvast invullen met het voorstel (blijft aanpasbaar)
+    if (a.taak_titel && $("inTitle").value === mail.subject) $("inTitle").value = a.taak_titel;
+    if (a.deadline && !$("inDeadline").value && /^\d{4}-\d{2}-\d{2}$/.test(a.deadline)) $("inDeadline").value = a.deadline;
+  } catch (e) { /* analyse is extra: stil overslaan */ }
+}
+
+// ------------------------------------------------------------------ antwoord voorbereiden
+async function onReply() {
+  const btn = $("btnReply");
+  busy(btn, true, "Antwoord schrijven…");
+  status("");
+  $("replyInfo").hidden = true;
+  try {
+    const r = await api("antwoord", Object.assign(mailPayload(5000), { user_name: userName(), instructie: $("inInstr").value.trim() }));
+    const info = $("replyInfo");
+    const feiten = (r.gebruikte_feiten || []).map((f) => `<li>${esc(f)}</li>`).join("");
+    const nakijk = (r.na_te_kijken || []).map((f) => `<li>${esc(f)}</li>`).join("");
+    info.innerHTML = (feiten ? `<b>Uit Robaws gebruikt</b><ul>${feiten}</ul>` : "") +
+                     (nakijk ? `<b>Zelf nakijken</b><ul>${nakijk}</ul>` : "");
+    info.hidden = !(feiten || nakijk);
+    Office.context.mailbox.item.displayReplyForm({ htmlBody: r.html || "" });
+    status("✅ Concept geopend in Outlook. Lees na, vul [ … ] aan en verstuur zelf.", "ok");
+  } catch (e) { status(e.message, "err"); }
+  busy(btn, false);
 }
 
 function setClient(klant, hoe, projecten, voorstelId, waarom, offertes, werkbonnen) {
@@ -358,6 +408,7 @@ Office.onReady(() => {
   $("btnCancelClient").addEventListener("click", () => show("secNewClient", false));
   $("btnCreateClient").addEventListener("click", onCreateClient);
   $("btnTask").addEventListener("click", onTask);
+  $("btnReply").addEventListener("click", onReply);
   $("btnAttach").addEventListener("click", onAttach);
   $("inSearchClient").addEventListener("input", onSearch);
   document.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => {

@@ -68,4 +68,13 @@ button.icon { border: 0; font-size: 16px; padding: 2px 6px; color: var(--muted);
 .warn { background: var(--warnbg); border-radius: 6px; padding: 8px; font-size: 12px; margin-bottom: 6px; }
 .warn button { margin-top: 6px; font-size: 12px; }
 .loading { color: var(--muted); padding: 16px 0; }
+.lbl { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; margin-right: 6px; }
+.lbl-Dringend { background: #fde3dc; color: #93360f; }
+.lbl-Kans { background: #e2eefb; color: #1f4f8a; }
+.lbl-Opvolgen { background: #eceae6; color: #4e463e; }
+.lbl-Info { background: #e7f3ec; color: var(--ok); }
+#analyse p { margin: 6px 0 0; }
+#analyse .why { color: var(--muted); font-size: 12px; }
+#replyInfo { background: var(--panel); border-radius: 6px; padding: 8px; margin-top: 8px; }
+#replyInfo ul { margin: 4px 0 6px; padding-left: 18px; }
 details summary { cursor: pointer; color: var(--muted); font-size: 12px; margin-top: 8px; }

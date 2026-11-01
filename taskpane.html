@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mail Agent</title>
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-  <link rel="stylesheet" href="taskpane.css?v=1">
+  <link rel="stylesheet" href="taskpane.css?v=2">
 </head>
 <body>
   <header>
@@ -27,6 +27,22 @@
 
   <main id="main">
     <div id="loading" class="loading">Mail wordt bekeken…</div>
+
+    <!-- Analyse (uit MAILBOX, geen nieuwe AI-kost) -->
+    <section id="secAnalyse" hidden>
+      <h2>Salto Data-analyse</h2>
+      <div id="analyse" class="card"></div>
+    </section>
+
+    <!-- Antwoord voorbereiden -->
+    <section id="secReply" hidden>
+      <h2>Antwoord</h2>
+      <label for="inInstr">Extra richting (optioneel)</label>
+      <input id="inInstr" placeholder="bv. stel donderdag voor als nieuwe datum">
+      <button id="btnReply" class="primary wide">✎ Antwoord voorbereiden</button>
+      <p class="muted small">Met feiten uit Robaws. Opent als concept in Outlook – jij leest na en verstuurt.</p>
+      <div id="replyInfo" class="small" hidden></div>
+    </section>
 
     <!-- Afzender -->
     <section id="secSender" hidden>
@@ -109,6 +125,6 @@
     <p id="status" class="msg" role="status"></p>
   </main>
 
-  <script src="taskpane.js?v=2"></script>
+  <script src="taskpane.js?v=3"></script>
 </body>
 </html>

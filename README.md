@@ -1,18 +1,22 @@
 # Mail Agent – Outlook-add-in (Salto Works)
 
-Taakvenster in Outlook dat een mail koppelt aan Robaws via Salto Data (Peliqan):
+Mail Agent koppelt je mails aan Robaws via Salto Data (Peliqan). Ze werkt op twee plaatsen.
 
-- **Afzender herkennen**: op mailadres, domein of naam, met de projecten, offertes en werkbonnen van de klant.
-- **Mail als taak**: maakt een Robaws-taak. De volledige mail komt eronder als opmerking.
-- **Mail aan project hangen**: de mail komt als opmerking op het project, de bijlagen als documenten.
-- **Nieuwe klant uit handtekening**: leest de gegevens uit de mail, controleert op dubbels en maakt pas na bevestiging de klant aan.
+**In het taakvenster bij een geopende mail** (vastpinbaar):
+- **Analyse:** het oordeel van MAILBOX (Dringend, Kans, Opvolgen of Info), met de reden en een voorstel.
+- **✎ Antwoord:** een concept-antwoord met feiten uit Robaws. Bij Dringend en Kans staat het al klaar. Met **Openen als antwoord** of **Kopiëren** zet je het in je mail.
+- **✓ Taak:** maakt een Robaws-taak, al ingevuld met het voorstel. De volledige mail komt eronder als opmerking.
+- **📎 Project:** de mail komt als opmerking op het project, de bijlagen als documenten.
+- **Nieuwe klant uit handtekening:** leest de gegevens uit de mail, controleert op dubbels en maakt de klant pas na bevestiging aan.
+
+**In het antwoordvenster**, via de knop **Aanvullen met Robaws**: het concept-antwoord komt bovenaan je mail. Je leest na en verstuurt zelf.
 
 ## Hoe het werkt
 
 - Dit is de voorkant: statische bestanden op GitHub Pages (`taskpane.html/.js/.css`, `manifest.xml`).
-- De achterkant is de Peliqan API-handler **MAIL · 20 Outlook API**, bereikbaar op `POST https://api.eu.peliqan.io/2704/mail/api`.
-- Elke vraag draagt de testsleutel (Peliqan-secret `MAIL Testsleutel`). Die wordt per gebruiker bewaard in Outlook (roamingSettings).
-- Logging gebeurt in `mail.mail_log`. De koppeling van gebruiker naar Robaws-gebruiker staat in `mail.mail_config` (`user_map`, `default_user_id`).
+- De achterkant is de Peliqan API-handler **SALTODATA · 30 Mail-addin**, bereikbaar op `POST https://api.eu.peliqan.io/2704/mail/api`.
+- Elke vraag draagt de sleutel (Peliqan-secret `SALTODATA Mail`). Die wordt per gebruiker bewaard in Outlook (roamingSettings), ook voor de knop in het antwoordvenster.
+- Logging gebeurt in `saltodata.actions` (module `mail`). Analyse en concept-antwoorden staan in `saltodata.mail_items`.
 
 ## Installeren (test, enkel voor jezelf)
 
@@ -22,4 +26,8 @@ Taakvenster in Outlook dat een mail koppelt aan Robaws via Salto Data (Peliqan):
 4. Open een mail en klik op **Mail Agent** (in het lint, of onder ⋯ → Apps).
 5. Vul bij ⚙ de sleutel in en klik **Bewaren en testen**.
 
-Na een update aan de bestanden: herlaad het taakvenster (rechtsklik → Vernieuwen) of verhoog `?v=` in `taskpane.html`.
+## Een nieuwe versie uitrollen
+
+- **Alleen JS/CSS gewijzigd:** verhoog `?v=` achter `taskpane.js`/`taskpane.css` in `taskpane.html`, of achter `commands.js` in `commands.html`.
+- **`taskpane.html` of `commands.html` zelf gewijzigd:** verhoog ook `?v=` in `manifest.xml` (Taskpane.Url, SourceLocation, Commands.Url) en de `<Version>`. Doe daarna in het M365-beheercentrum **Update add-in**.
+- Zonder update van het manifest: rechtsklik in het paneel → **Vernieuwen**, of Ctrl+F5 in Outlook online.

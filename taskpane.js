@@ -183,29 +183,50 @@ async function onReply() {
   } catch (e) { if (seq === loadSeq) status(e.message, "err"); }
   if (seq === loadSeq) busy(btn, false);
 }
-function onOpenReply() {
+// eenvoudige HTML (enkel alinea's en regeleinden): sommige Outlook-versies weigeren opgemaakte HTML
+function simpleHtml(t) {
+  return String(t || "").split(/\n{2,}/).map((p) => "<p>" + esc(p).replace(/\n/g, "<br>") + "</p>").join("");
+}
+function tryAsync(item, data) {
+  return new Promise((resolve) => {
+    try {
+      if (!item.displayReplyFormAsync) return resolve("niet beschikbaar");
+      item.displayReplyFormAsync(data, (res) =>
+        resolve(res.status === Office.AsyncResultStatus.Succeeded ? null : ((res.error && res.error.message) || "fout")));
+    } catch (e) { resolve(e.message || "fout"); }
+  });
+}
+async function onOpenReply() {
   if (!lastReply) return;
-  const html = lastReply.html || "";
+  const html = simpleHtml(lastReply.tekst);
   const item = Office.context.mailbox.item;
-  const done = (ok, msg) => status(ok ? "✅ Antwoord geopend in Outlook. Vul [ … ] aan en verstuur zelf."
-    : `Openen lukte niet${msg ? " (" + msg + ")" : ""}. Gebruik ‘Kopiëren’ en plak in een antwoord.`, ok ? "ok" : "err");
+  const ok = () => status("✅ Antwoord geopend in Outlook. Vul [ … ] aan en verstuur zelf.", "ok");
+  // 1. nieuwe manier, eenvoudige HTML als tekst  2. idem als object  3. oude manier  4. klembord
+  let err = await tryAsync(item, html);
+  if (!err) return ok();
+  const err2 = await tryAsync(item, { htmlBody: html });
+  if (!err2) return ok();
+  try { item.displayReplyForm(html); return ok(); } catch (e) { err = e.message || err; }
+  const copied = await copyText(lastReply.tekst);
+  status(copied ? `Outlook liet het openen niet toe (${err}). 📋 Het concept staat op je klembord: klik Beantwoorden en plak (Ctrl+V).`
+                : `Outlook liet het openen niet toe (${err}). Gebruik ‘Kopiëren’ en plak in een antwoord.`, "err");
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t || ""); return true; } catch (e) { /* valt terug */ }
   try {
-    if (item.displayReplyFormAsync) {
-      item.displayReplyFormAsync({ htmlBody: html }, (res) =>
-        done(res.status === Office.AsyncResultStatus.Succeeded, res.error && res.error.message));
-    } else {
-      item.displayReplyForm({ htmlBody: html });
-      done(true);
-    }
-  } catch (e) { done(false, e.message); }
+    const ta = document.createElement("textarea");
+    ta.value = t || ""; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  } catch (e) { return false; }
 }
 async function onCopy() {
   if (!lastReply) return;
-  const t = lastReply.tekst || "";
-  try {
-    await navigator.clipboard.writeText(t);
-    status("📋 Gekopieerd. Klik in Outlook op Beantwoorden en plak.", "ok");
-  } catch (e) {
+  if (await copyText(lastReply.tekst)) {
+    status("📋 Gekopieerd. Klik in Outlook op Beantwoorden en plak (Ctrl+V).", "ok");
+  } else {
     const r = document.createRange();
     r.selectNodeContents($("replyText"));
     const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);

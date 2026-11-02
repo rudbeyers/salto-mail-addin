@@ -86,13 +86,14 @@
     <!-- 3. Wat doe je (drie knoppen; formulier enkel na een klik) -->
     <section id="secActions" hidden>
       <div class="acts" role="tablist">
-        <button class="act" data-pane="paneReply" role="tab">✎ Antwoord</button>
+        <button class="act" data-pane="paneReply" role="tab" title="Gewoon antwoorden: Apps → Antwoord met Robaws">✎ Bijsturen</button>
         <button class="act" data-pane="paneOffer" role="tab">€ Offerte</button>
         <button class="act" data-pane="tabTask" role="tab">✓ Taak</button>
         <button class="act" data-pane="tabAttach" role="tab" title="Mail en bijlagen aan het project hangen">📎</button>
       </div>
 
       <div id="paneReply" class="pane" hidden>
+        <p class="small">Gewoon antwoorden? Gebruik <b>Apps → Antwoord met Robaws</b>. Hier stuur je het concept bij.</p>
         <button id="btnInstr" class="link">+ richting geven</button>
         <input id="inInstr" placeholder="bv. stel donderdag voor als nieuwe datum" hidden>
         <button id="btnReply" class="primary wide">Concept maken met Robaws-gegevens</button>
@@ -145,6 +146,6 @@
     <p id="status" class="msg" role="status"></p>
   </main>
 
-  <script src="taskpane.js?v=8"></script>
+  <script src="taskpane.js?v=9"></script>
 </body>
 </html>

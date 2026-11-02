@@ -143,12 +143,9 @@ async function loadAnalyse(seq) {
       (meer ? `<details class="why"><summary>meer</summary>${meer}</details>` : "");
     show("secAnalyse", true);
     if (r.leverancier) { renderLev(r.leverancier); return; }   // leveranciersmail: geen klantantwoord voorbereiden
-    // Dringend of Kans: het concept-antwoord staat al klaar (door MAILBOX), anders meteen laten maken
-    if (lbl === "Dringend" || lbl === "Kans") {
-      openPane("paneReply");
-      if (r.concept && r.concept.tekst) showConcept(r.concept);
-      else if (a.status !== "beantwoord") onReply();
-    }
+    // v9: antwoorden gaat via de knop "Antwoord met Robaws" in het lint; het paneel opent niet meer vanzelf op Bijsturen.
+    // Een klaargezet concept (MAILBOX) staat wel al klaar als je Bijsturen opent.
+    if (r.concept && r.concept.tekst) showConcept(r.concept);
     // taak alvast invullen met het voorstel (blijft aanpasbaar)
     if (a.taak_titel && $("inTitle").value === mail.subject) $("inTitle").value = a.taak_titel;
     if (a.deadline && !$("inDeadline").value && /^\d{4}-\d{2}-\d{2}$/.test(a.deadline)) $("inDeadline").value = a.deadline;

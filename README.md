@@ -30,6 +30,12 @@ Mail Agent koppelt je mails aan Robaws via Salto Data (Peliqan). Ze werkt op twe
 
 ## Een nieuwe versie uitrollen
 
+> **Let op:** een persoonlijke installatie (via aka.ms/olksideload → *Toevoegen vanaf URL*) leest de manifest maar één keer in
+> en wordt nooit vernieuwd. Ze heeft voorrang op de uitrol uit het beheercentrum (zelfde Id). Nieuwe knoppen in het lint
+> verschijnen dan pas nadat je de persoonlijke kopie verwijdert (Mijn invoegtoepassingen → Aangepaste → ⋯ → Verwijderen) of
+> opnieuw toevoegt met een nieuwe URL (`manifest.xml?v=…`). Voor klanten: altijd via het beheercentrum, met een link (geen bestand).
+
+
 - **Alleen JS/CSS gewijzigd:** verhoog `?v=` achter `taskpane.js`/`taskpane.css` in `taskpane.html`, of achter `commands.js` in `commands.html`.
 - **`taskpane.html` of `commands.html` zelf gewijzigd:** verhoog ook `?v=` in `manifest.xml` (Taskpane.Url, SourceLocation, Commands.Url) en de `<Version>`. Doe daarna in het M365-beheercentrum **Update add-in**.
 - Zonder update van het manifest: rechtsklik in het paneel → **Vernieuwen**, of Ctrl+F5 in Outlook online.

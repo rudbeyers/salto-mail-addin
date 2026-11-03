@@ -93,6 +93,19 @@ async function aanvullen(event) {
 // ------------------------------------------------------------------ knop "Antwoord met Robaws" in de leesweergave (1.2)
 // Eén klik vanuit de geopende mail: concept ophalen (bewaard concept van MAILBOX = meteen en gratis, anders Sonnet)
 // en meteen een ingevuld antwoordvenster openen. Lukt openen niet (sommige Outlook-apps), dan een duidelijke melding.
+// Nieuwe Outlook voor Windows meldt bij displayReplyForm "gelukt" maar opent niets (getest 3/11/2026, op het web werkt
+// het wel). Daar zet de server het antwoord als CONCEPT in het gesprek (backend-actie concept_maken, v3.8).
+function nieuweOutlook() {
+  try { return String(Office.context.mailbox.diagnostics.hostName || "").toLowerCase() === "newoutlookwindows"; }
+  catch (e) { return false; }
+}
+function openConcept(id) {   // proberen het concept te openen; lukt het niet, dan staat het toch in het gesprek
+  try {
+    const ews = Office.context.mailbox.convertToEwsId(id, Office.MailboxEnums.RestVersion.v2_0);
+    Office.context.mailbox.displayMessageForm(ews);
+  } catch (e) { /* niet erg */ }
+}
+
 function openAntwoord(item, html) {
   const poging = (data) => new Promise((resolve) => {
     try {
@@ -115,7 +128,9 @@ async function antwoordMetRobaws(event) {
       await note(item, "ErrorMessage", "Sleutel ontbreekt: open één keer de Mail Agent bij een mail en vul de sleutel in (⚙).");
       return;
     }
-    await note(item, "ProgressIndicator", "Antwoord met Robaws-gegevens wordt klaargezet…");
+    const nieuw = nieuweOutlook();
+    await note(item, "ProgressIndicator", nieuw ? "Concept-antwoord met Robaws-gegevens wordt in dit gesprek gezet…"
+                                                : "Antwoord met Robaws-gegevens wordt klaargezet…");
     const body = await get((cb) => item.body.getAsync(Office.CoercionType.Text, cb));
     const from = item.from || item.sender || {};
     const profiel = Office.context.mailbox.userProfile || {};
@@ -123,7 +138,7 @@ async function antwoordMetRobaws(event) {
     const res = await fetch(API, {
       method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" },
       body: JSON.stringify({
-        key, action: "antwoord", user: profiel.emailAddress || "", user_name: profiel.displayName || "",
+        key, action: nieuw ? "concept_maken" : "antwoord", user: profiel.emailAddress || "", user_name: profiel.displayName || "",
         item_id: item.itemId || "", internet_message_id: item.internetMessageId || "",
         subject: item.subject || "", from_email: (from.emailAddress || "").toLowerCase(), from_name: from.displayName || "",
         date: d ? d.toLocaleString("nl-BE", { dateStyle: "short", timeStyle: "short" }) : "",
@@ -134,6 +149,13 @@ async function antwoordMetRobaws(event) {
     try { j = await res.json(); } catch (e) { /* lege body */ }
     if (!res.ok || j.ok === false || !j.tekst) {
       await note(item, "ErrorMessage", j.fout || ("Concept maken mislukt (" + res.status + ")."));
+      return;
+    }
+    if (nieuw) {
+      if (j.concept_id) openConcept(j.concept_id);
+      const n = (j.na_te_kijken || []).length;
+      await note(item, "InformationalMessage", (j.bestond ? "Het concept-antwoord stond al klaar" : "Concept-antwoord staat klaar")
+        + ` in dit gesprek (en bij Concepten)${n ? ` – ${n} punten nakijken` : ""}. Vul [ … ] aan en verstuur zelf.`);
       return;
     }
     const html = simpleHtml(zonderNaam(j.tekst, profiel.displayName));

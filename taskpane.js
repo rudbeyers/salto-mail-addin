@@ -244,8 +244,24 @@ function tryAsync(item, data) {
     } catch (e) { resolve(e.message || "fout"); }
   });
 }
+function nieuweOutlook() {   // v10: daar opent displayReplyForm niets; de server zet het als concept in het gesprek
+  try { return String(Office.context.mailbox.diagnostics.hostName || "").toLowerCase() === "newoutlookwindows"; }
+  catch (e) { return false; }
+}
 async function onOpenReply() {
   if (!lastReply) return;
+  if (nieuweOutlook()) {
+    status("Concept-antwoord wordt in dit gesprek gezet…");
+    try {
+      const r = await api("concept_maken", { tekst: lastReply.tekst, user_name: userName() });
+      try {
+        Office.context.mailbox.displayMessageForm(
+          Office.context.mailbox.convertToEwsId(r.concept_id, Office.MailboxEnums.RestVersion.v2_0));
+      } catch (e) { /* openen is een extraatje */ }
+      status("✅ Concept-antwoord staat klaar in dit gesprek (en bij Concepten). Vul [ … ] aan en verstuur zelf.", "ok");
+    } catch (e) { status(e.message, "err"); }
+    return;
+  }
   const html = simpleHtml(lastReply.tekst);
   const item = Office.context.mailbox.item;
   const ok = () => status("✅ Antwoord geopend in Outlook. Vul [ … ] aan en verstuur zelf.", "ok");

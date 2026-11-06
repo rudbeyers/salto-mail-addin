@@ -1,0 +1,12 @@
+{
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+  },
+  "routes": [
+    { "route": "/*.xml", "headers": { "Cache-Control": "no-cache" } },
+    { "route": "/*.js", "headers": { "Cache-Control": "no-cache" } },
+    { "route": "/*.html", "headers": { "Cache-Control": "no-cache" } }
+  ],
+  "mimeTypes": { ".xml": "application/xml" }
+}

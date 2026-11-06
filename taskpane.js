@@ -29,7 +29,8 @@ function status(text, kind) {
   el.className = "msg" + (kind ? " " + kind : "");
 }
 async function api(action, payload) {
-  const body = Object.assign({ key: getKey(), action, user: userEmail(), item_id: mail ? mail.item_id : "",
+  const token = await ssoToken(true);
+  const body = Object.assign({ key: getKey(), token, action, user: userEmail(), item_id: mail ? mail.item_id : "",
                                internet_message_id: mail ? mail.internet_message_id : "" }, payload || {});
   let res;
   try {
@@ -104,7 +105,8 @@ async function load() {
   mail = await readMail();
   if (seq !== loadSeq) return;
   if (!mail) { $("loading").textContent = "Open een mail om te beginnen."; return; }
-  if (!getKey()) { show("loading", false); showSettings("Vul eerst de sleutel in."); return; }
+  if (!getKey() && !(await ssoToken(true))) {
+    show("loading", false); showSettings(`Aanmelden met Microsoft lukte niet (${ssoFout}). Vul de sleutel in.`); return; }
 
   $("inTitle").value = mail.subject;
   $("inDeadline").value = "";
@@ -708,7 +710,8 @@ async function onSaveKey() {
   await saveKey($("inKey").value.trim());
   try {
     const r = await api("ping");
-    $("settingsMsg").textContent = `✅ Verbonden (versie ${r.versie}).`;
+    $("settingsMsg").textContent = `✅ Verbonden (versie ${r.versie})` +
+      (r.sso ? ` · aangemeld met Microsoft als ${r.sso}.` : ` · met de sleutel (Microsoft: ${ssoFout || "geen token"}).`);
     $("settingsMsg").className = "msg ok";
     setTimeout(() => { show("settings", false); load(); }, 700);
   } catch (e) {

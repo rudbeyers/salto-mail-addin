@@ -45,8 +45,9 @@ async function aanvullen(event) {
   try {
     let key = "";
     try { key = Office.context.roamingSettings.get(KEY_SETTING) || ""; } catch (e) { /* geen instellingen */ }
-    if (!key) {
-      await note(item, "ErrorMessage", "Sleutel ontbreekt: open één keer de Mail Agent bij een mail en vul de sleutel in (⚙).");
+    const token = await ssoToken(false);
+    if (!key && !token) {
+      await note(item, "ErrorMessage", "Niet aangemeld: open één keer de Mail Agent bij een mail om je aan te melden.");
       return;
     }
     await note(item, "ProgressIndicator", "Concept met Robaws-gegevens wordt klaargezet…");
@@ -60,7 +61,7 @@ async function aanvullen(event) {
     const res = await fetch(API, {
       method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" },
       body: JSON.stringify({
-        key, action: "aanvullen", user: profiel.emailAddress || "", user_name: profiel.displayName || "",
+        key, token, action: "aanvullen", user: profiel.emailAddress || "", user_name: profiel.displayName || "",
         conversation_id: item.conversationId || "", from_email: (ontvanger.emailAddress || "").toLowerCase(),
         from_name: ontvanger.displayName || "", subject: String(subject || "").replace(/^\s*(re|antw|aw)\s*:\s*/i, ""),
         body: String(body || "").slice(0, 5000), item_id: "compose",
@@ -124,8 +125,9 @@ async function antwoordMetRobaws(event) {
   try {
     let key = "";
     try { key = Office.context.roamingSettings.get(KEY_SETTING) || ""; } catch (e) { /* geen instellingen */ }
-    if (!key) {
-      await note(item, "ErrorMessage", "Sleutel ontbreekt: open één keer de Mail Agent bij een mail en vul de sleutel in (⚙).");
+    const token = await ssoToken(false);
+    if (!key && !token) {
+      await note(item, "ErrorMessage", "Niet aangemeld: open één keer de Mail Agent bij een mail om je aan te melden.");
       return;
     }
     const nieuw = nieuweOutlook();
@@ -138,7 +140,7 @@ async function antwoordMetRobaws(event) {
     const res = await fetch(API, {
       method: "POST", headers: { "Content-Type": "text/plain;charset=UTF-8" },
       body: JSON.stringify({
-        key, action: nieuw ? "concept_maken" : "antwoord", user: profiel.emailAddress || "", user_name: profiel.displayName || "",
+        key, token, action: nieuw ? "concept_maken" : "antwoord", user: profiel.emailAddress || "", user_name: profiel.displayName || "",
         item_id: item.itemId || "", internet_message_id: item.internetMessageId || "",
         subject: item.subject || "", from_email: (from.emailAddress || "").toLowerCase(), from_name: from.displayName || "",
         date: d ? d.toLocaleString("nl-BE", { dateStyle: "short", timeStyle: "short" }) : "",
